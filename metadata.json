@@ -1,0 +1,6 @@
+{
+  "name": "Vibe Check",
+  "description": "Discover your personality profile based on your top 5 favorite songs.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
