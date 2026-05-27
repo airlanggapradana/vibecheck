@@ -1,22 +1,49 @@
 import React, { useState } from 'react';
-import { Music, Plus, X, Sparkles, Loader2, Disc3, Flame } from 'lucide-react';
+import { Music, Plus, X, Sparkles, Loader2, Disc3, Flame, Share2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Song, PersonalityProfile } from './types';
 import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
+import { toPng } from 'html-to-image';
 
+
+const loadingMessages = [
+  "Membaca aura playlist lu...",
+  "Menganalisis tingkat ke-galauan...",
+  "Menghitung berapa kali lu skip lagu...",
+  "Bertanya ke dukun musik...",
+  "Mencari tau kenapa selera lu begini...",
+  "Menyiapkan mental buat hasil analisis...",
+  "Menyelaraskan frekuensi khodam musik lu..."
+];
 
 export default function App() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [mode, setMode] = useState<'hype' | 'roast'>('hype');
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [profile, setProfile] = useState<PersonalityProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const resultRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      interval = setInterval(() => {
+        setLoadingMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+      }, 2500);
+    } else {
+      setLoadingMessageIndex(0);
+    }
+
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   const handleSearch = async (query: string) => {
     if (!query.trim()) {
@@ -116,6 +143,47 @@ export default function App() {
     setSongs([]);
     setProfile(null);
     setError(null);
+  };
+
+  const handleShare = async () => {
+    if (!resultRef.current) return;
+    try {
+      setIsSharing(true);
+      
+      // Delay slightly to ensure UI is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const dataUrl = await toPng(resultRef.current, {
+        cacheBust: true,
+        backgroundColor: '#0a0a0a',
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], 'vibe-check.png', { type: 'image/png' });
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: 'My Vibe Check',
+          text: `Cek Vibe Musik Gue hari ini! ${profile?.themeName}\n\nCobain cek vibe lu juga di App ini!`,
+          files: [file],
+        });
+      } else {
+        // Fallback to download
+        const link = document.createElement('a');
+        link.download = `vibe-check-${new Date().getTime()}.png`;
+        link.href = dataUrl;
+        link.click();
+      }
+    } catch (err) {
+      console.error('Failed to share:', err);
+      alert("Gagal membagikan hasil. Coba lagi.");
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -316,7 +384,20 @@ export default function App() {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-6 h-6 animate-spin" />
-                    <span>Lagi baca aura lo...</span>
+                    <div className="relative h-4 flex items-center justify-center min-w-[300px]">
+                      <AnimatePresence mode="popLayout">
+                        <motion.span
+                          key={loadingMessageIndex}
+                          initial={{ y: 15, opacity: 0 }}
+                          animate={{ y: 0, opacity: 1 }}
+                          exit={{ y: -15, opacity: 0 }}
+                          transition={{ duration: 0.4 }}
+                          className="absolute w-full"
+                        >
+                          {loadingMessages[loadingMessageIndex]}
+                        </motion.span>
+                      </AnimatePresence>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -339,11 +420,12 @@ export default function App() {
               className="space-y-6 flex flex-col"
             >
               <div 
-                className="bg-[#0a0a0a] border-t border-b border-white/20 py-12 md:py-16 relative overflow-hidden flex flex-col items-center justify-center"
+                ref={resultRef}
+                className="bg-[#0a0a0a] border-t border-b border-white/20 py-12 md:py-16 relative overflow-hidden flex flex-col items-center justify-center -mx-4 px-4 sm:mx-0 sm:px-0"
               >
                 {/* Background Decorative Text */}
                 <div 
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10rem] md:text-[18rem] font-serif italic opacity-[0.02] pointer-events-none select-none leading-none whitespace-nowrap"
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[8rem] md:text-[18rem] font-serif italic opacity-[0.02] pointer-events-none select-none leading-none whitespace-nowrap"
                   style={{ color: profile.hexColor }}
                 >
                   Identitas
@@ -456,10 +538,18 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-12">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center mt-12 w-full max-w-2xl mx-auto">
+                <button
+                  onClick={handleShare}
+                  disabled={isSharing}
+                  className="bg-white text-black hover:bg-white/90 px-10 py-5 text-[10px] uppercase tracking-[0.2em] font-bold transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+                  {isSharing ? 'Menyiapkan...' : 'Share Hasil'}
+                </button>
                 <button
                   onClick={handleReset}
-                  className="bg-transparent border border-white/20 hover:border-white text-white/70 hover:text-white px-10 py-5 text-[10px] uppercase tracking-[0.2em] font-bold transition-all"
+                  className="bg-transparent border border-white/20 hover:border-white text-white/70 hover:text-white px-10 py-5 text-[10px] uppercase tracking-[0.2em] font-bold transition-all flex items-center justify-center"
                 >
                   Cek Pilihan Lain
                 </button>
