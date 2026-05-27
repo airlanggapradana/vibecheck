@@ -15,6 +15,45 @@ async function startServer() {
   app.use(express.json());
 
   // API Route
+  let spotifyToken: string | null = null;
+  let spotifyTokenExpiresAt: number = 0;
+
+  async function getSpotifyToken() {
+    if (spotifyToken && Date.now() < spotifyTokenExpiresAt) {
+      return spotifyToken;
+    }
+
+    // Use environment variables or fallback to exact credentials provided by user
+    const clientId = process.env.SPOTIFY_CLIENT_ID || "69b2a94e61534802867bf4839d0ee1e1";
+    const clientSecret = process.env.SPOTIFY_CLIENT_SECRET || "d0e57fe924e346a78da3d852fe959414";
+
+    if (!clientId || !clientSecret) {
+      throw new Error("Token Spotify belum disetting di environment variables");
+    }
+
+    const response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: clientId,
+        client_secret: clientSecret,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Gagal mengambil token baru dari Spotify");
+    }
+
+    const data = await response.json();
+    spotifyToken = data.access_token;
+    spotifyTokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000; // Buffer 60 detik
+
+    return spotifyToken;
+  }
+
   app.get("/api/search-spotify", async (req, res) => {
     try {
       const query = req.query.q;
@@ -22,14 +61,11 @@ async function startServer() {
         return res.status(400).json({ error: "Query wajib diisi" });
       }
 
-      const SPOTIFY_TOKEN = process.env.SPOTIFY_TOKEN;
-      if (!SPOTIFY_TOKEN) {
-        return res.status(500).json({ error: "Token Spotify belum disetting di environment variables" });
-      }
+      const token = await getSpotifyToken();
 
       const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=5`, {
         headers: {
-          "Authorization": `Bearer ${SPOTIFY_TOKEN}`
+          "Authorization": `Bearer ${token}`
         }
       });
 

@@ -3,6 +3,7 @@ import { Music, Plus, X, Sparkles, Loader2, Disc3, Flame } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { Song, PersonalityProfile } from './types';
 import ReactMarkdown from 'react-markdown';
+import confetti from 'canvas-confetti';
 
 
 export default function App() {
@@ -93,6 +94,17 @@ export default function App() {
 
       const data: PersonalityProfile = await response.json();
       setProfile(data);
+      
+      // Trigger subtle confetti
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        colors: [data.hexColor, '#ffffff'],
+        disableForReducedMotion: true,
+        gravity: 0.8,
+        ticks: 200,
+        origin: { y: 0.6 }
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
