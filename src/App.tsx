@@ -5,6 +5,7 @@ import type { Song, PersonalityProfile } from './types';
 import ReactMarkdown from 'react-markdown';
 import confetti from 'canvas-confetti';
 import { toPng } from 'html-to-image';
+import { Helmet } from 'react-helmet-async';
 
 
 const loadingMessages = [
@@ -188,6 +189,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0a0a0a] text-[#e0e0e0] font-sans relative overflow-hidden">
+      <Helmet>
+        {profile ? (
+          <>
+            <title>Cek Vibe Musik - {profile.themeName}</title>
+            <meta name="description" content={`Vibe gue hari ini: ${profile.themeName}. ${profile.musicalVibe}`} />
+            <meta property="og:title" content={`My Vibe Check: ${profile.themeName}`} />
+            <meta property="og:description" content={`Cek vibe musik gue hari ini! Elemen inti: ${profile.traits.join(', ')}. Cobain cek selera lu juga.`} />
+            <meta name="twitter:title" content={`My Vibe Check: ${profile.themeName}`} />
+            <meta name="twitter:description" content={profile.musicalVibe} />
+          </>
+        ) : (
+          <>
+            <title>Cek Vibe Musik</title>
+            <meta name="description" content="Pilih 5 lagu favorit lo. Intip profil kepribadian lo dari vibes musik." />
+            <meta property="og:title" content="Cek Vibe Musik" />
+            <meta property="og:description" content="Pilih 5 lagu favorit lo. Intip profil kepribadian lo dari vibes musik." />
+          </>
+        )}
+      </Helmet>
       
       {/* Top Navigation */}
       <nav className="flex justify-between items-center px-6 md:px-12 py-8 border-b border-white/10 shrink-0 z-20">
