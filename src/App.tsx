@@ -30,6 +30,7 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [missingTrackSpotifyId, setMissingTrackSpotifyId] = useState<string | null>(null);
   const searchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const resultRef = React.useRef<HTMLDivElement>(null);
 
@@ -98,7 +99,10 @@ export default function App() {
   const handleRemoveSong = (id: string) => {
     setSongs(songs.filter(s => s.id !== id));
     // Reset profile if user alters their list after generating
-    if (profile) setProfile(null);
+    if (profile) {
+      setProfile(null);
+      setMissingTrackSpotifyId(null);
+    }
   };
 
   const handleGenerate = async () => {
@@ -123,6 +127,18 @@ export default function App() {
       const data: PersonalityProfile = await response.json();
       setProfile(data);
       
+      // Attempt to find the missing track on Spotify
+      if (data.missingTrack) {
+        fetch(`/api/search-spotify?q=${encodeURIComponent(`${data.missingTrack.title} ${data.missingTrack.artist}`)}`)
+          .then(res => res.json())
+          .then(trackData => {
+            if (trackData.tracks?.items?.length > 0) {
+              setMissingTrackSpotifyId(trackData.tracks.items[0].id);
+            }
+          })
+          .catch(err => console.error(err));
+      }
+      
       // Trigger subtle confetti
       confetti({
         particleCount: 50,
@@ -143,6 +159,7 @@ export default function App() {
   const handleReset = () => {
     setSongs([]);
     setProfile(null);
+    setMissingTrackSpotifyId(null);
     setError(null);
   };
 
@@ -524,33 +541,55 @@ export default function App() {
                           className="absolute left-0 top-0 bottom-0 w-1 opacity-50 group-hover:opacity-100 transition-opacity" 
                           style={{ backgroundColor: profile.hexColor }} 
                         />
-                        <div className="flex flex-col md:flex-row gap-6 md:items-center justify-between">
-                          <div className="space-y-4 max-w-xl">
-                            <div className="flex items-center gap-3">
-                              <Sparkles className="w-4 h-4" style={{ color: profile.hexColor }} />
-                              <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: profile.hexColor }}>The Missing Track (Lagu Ke-6)</h4>
+                        <div className="flex flex-col gap-8">
+                          <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between">
+                            <div className="space-y-4 max-w-xl">
+                              <div className="flex items-center gap-3">
+                                <Sparkles className="w-4 h-4" style={{ color: profile.hexColor }} />
+                                <h4 className="text-[10px] uppercase tracking-[0.2em] font-bold" style={{ color: profile.hexColor }}>The Missing Track (Lagu Ke-6)</h4>
+                              </div>
+                              <div>
+                                <h3 className="text-2xl font-serif italic text-white mb-1 group-hover:tracking-wide transition-all">{profile.missingTrack.title}</h3>
+                                <p className="text-sm uppercase tracking-widest text-white/40">{profile.missingTrack.artist}</p>
+                              </div>
+                              <p className="text-sm text-white/70 font-light leading-relaxed">
+                                {profile.missingTrack.reason}
+                              </p>
                             </div>
-                            <div>
-                              <h3 className="text-2xl font-serif italic text-white mb-1 group-hover:tracking-wide transition-all">{profile.missingTrack.title}</h3>
-                              <p className="text-sm uppercase tracking-widest text-white/40">{profile.missingTrack.artist}</p>
-                            </div>
-                            <p className="text-sm text-white/70 font-light leading-relaxed">
-                              {profile.missingTrack.reason}
-                            </p>
+                            {!missingTrackSpotifyId && (
+                              <div className="shrink-0 flex items-center justify-center">
+                                <a
+                                  href={`https://open.spotify.com/search/${encodeURIComponent(`${profile.missingTrack.title} ${profile.missingTrack.artist}`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/40 hover:text-[#1DB954] hover:border-[#1DB954] transition-all bg-white/5 hover:bg-white/10"
+                                  title="Search on Spotify"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+                                    <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                                  </svg>
+                                </a>
+                              </div>
+                            )}
                           </div>
-                          <div className="shrink-0 flex items-center justify-center">
-                            <a
-                              href={`https://open.spotify.com/search/${encodeURIComponent(`${profile.missingTrack.title} ${profile.missingTrack.artist}`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white/40 hover:text-[#1DB954] hover:border-[#1DB954] transition-all bg-white/5 hover:bg-white/10"
-                              title="Search on Spotify"
+                          {missingTrackSpotifyId && (
+                            <motion.div 
+                              initial={{ opacity: 0, y: 10 }} 
+                              animate={{ opacity: 1, y: 0 }} 
+                              className="w-full h-[80px]"
                             >
-                              <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-                                <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.24 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.84.24 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.6.18-1.2.72-1.38 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
-                              </svg>
-                            </a>
-                          </div>
+                              <iframe 
+                                src={`https://open.spotify.com/embed/track/${missingTrackSpotifyId}?utm_source=generator&theme=0`} 
+                                width="100%" 
+                                height="100%" 
+                                frameBorder="0" 
+                                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+                                loading="lazy"
+                                className="rounded-xl overflow-hidden shadow-lg border border-white/10"
+                                sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation-by-user-activation"
+                              ></iframe>
+                            </motion.div>
+                          )}
                         </div>
                       </div>
                     )}
