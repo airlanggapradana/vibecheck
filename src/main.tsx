@@ -1,11 +1,14 @@
-import {StrictMode} from 'react';
-import {createRoot} from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./index.css";
 
-import { HelmetProvider } from 'react-helmet-async';
+import { HelmetProvider } from "react-helmet-async";
+import { inject } from "@vercel/analytics";
 
-createRoot(document.getElementById('root')!).render(
+inject();
+
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <HelmetProvider>
       <App />
